@@ -11,8 +11,20 @@
     <link rel="stylesheet" href="style.css" type="text/css" />
   </head>
   <body>
+    <header>SISTEMA DE TRADUCCION</header>
+    <main>
+      <button onclick="startAudio()">Empezar transmisión</button>
+      <span class="offline">On air</span>
+      <audio></audio>
+    </main>
+
     <script>
-      require('./renderer');
+      const { getAudio } = require('./renderer');
+      const startAudio = () => {
+        const message = document.getElementsByClassName('offline');
+        message[0].className = 'online';
+        getAudio();
+      };
     </script>
   </body>
 </html>

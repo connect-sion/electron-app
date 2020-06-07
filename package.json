@@ -4,7 +4,9 @@
   "description": "A Frontend Masters Example Application",
   "main": "app/main.js",
   "dependencies": {
-    "electron": "~3.0.10"
+    "electron": "~3.0.10",
+    "electron-squirrel-startup": "~1.0.0",
+    "simple-peer": "~9.7.2"
   },
   "devDependencies": {
     "babel-eslint": "~7.1.1",

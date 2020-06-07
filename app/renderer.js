@@ -1,18 +1,35 @@
-const markdownView = document.querySelector('#markdown');
-const htmlView = document.querySelector('#html');
-const newFileButton = document.querySelector('#new-file');
-const openFileButton = document.querySelector('#open-file');
-const saveMarkdownButton = document.querySelector('#save-markdown');
-const revertButton = document.querySelector('#revert');
-const saveHtmlButton = document.querySelector('#save-html');
-const showFileButton = document.querySelector('#show-file');
-const openInDefaultButton = document.querySelector('#open-in-default');
+const Peer = require('simple-peer');
 
-const renderMarkdownToHtml = (markdown) => {
-  htmlView.innerHTML = marked(markdown, { sanitize: true });
+const peer1 = new Peer({ initiator: true });
+
+peer1.on('connect', () => {
+  // wait for 'connect' event before using the data channel
+  peer1.send('hey peer2, how is it going?');
+});
+
+function addMedia(stream) {
+  peer1.addStream(stream);
+}
+
+exports.getAudio = () => {
+  navigator.mediaDevices
+    .getUserMedia({
+      video: true,
+      audio: true,
+    })
+    .then(addMedia)
+    .catch(() => {});
 };
 
-markdownView.addEventListener('keyup', (event) => {
-  const currentContent = event.target.value;
-  renderMarkdownToHtml(currentContent);
+/*
+peer2.on('stream', (stream) => {
+  const audio = document.querySelector('audio');
+  if ('srcObject' in audio) {
+    audio.srcObject = stream;
+  } else {
+    // for older browsers
+    audio.src = window.URL.createObjectURL(stream);
+  }
+  audio.play();
 });
+*/
