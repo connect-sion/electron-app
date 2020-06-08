@@ -21,8 +21,8 @@
     <script>
       const { getAudio } = require('./renderer');
       const startAudio = () => {
-        const message = document.getElementsByClassName('offline');
-        message[0].className = 'online';
+        const message = document.getElementsByClassName('offline')[0];
+        if (message) message.className = 'online';
         getAudio();
       };
     </script>

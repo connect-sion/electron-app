@@ -1,35 +1,53 @@
-const Peer = require('simple-peer');
+const io = require('socket.io-client');
 
-const peer1 = new Peer({ initiator: true });
+const socket = io.connect('http://localhost:8080');
 
-peer1.on('connect', () => {
-  // wait for 'connect' event before using the data channel
-  peer1.send('hey peer2, how is it going?');
-});
-
-function addMedia(stream) {
-  peer1.addStream(stream);
-}
+const peerConnections = {};
+const audio = document.querySelector('audio');
+const config = { iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] };
 
 exports.getAudio = () => {
   navigator.mediaDevices
-    .getUserMedia({
-      video: true,
-      audio: true,
+    .getUserMedia({ video: false, audio: true })
+    .then((stream) => {
+      audio.srcObject = stream;
+      socket.emit('broadcaster');
     })
-    .then(addMedia)
-    .catch(() => {});
-};
+    .catch(console.error);
 
-/*
-peer2.on('stream', (stream) => {
-  const audio = document.querySelector('audio');
-  if ('srcObject' in audio) {
-    audio.srcObject = stream;
-  } else {
-    // for older browsers
-    audio.src = window.URL.createObjectURL(stream);
-  }
-  audio.play();
-});
-*/
+  socket.on('watcher', (id) => {
+    const peerConnection = new RTCPeerConnection(config);
+    peerConnections[id] = peerConnection;
+
+    let stream = audio.src;
+    stream
+      .getTracks()
+      .forEach((track) => peerConnection.addTrack(track, stream));
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('candidate', id, event.candidate);
+      }
+    };
+
+    peerConnection
+      .createOffer()
+      .then((sdp) => peerConnection.setLocalDescription(sdp))
+      .then(() => {
+        socket.emit('offer', id, peerConnection.localDescription);
+      });
+  });
+
+  socket.on('answer', (id, description) => {
+    peerConnections[id].setRemoteDescription(description);
+  });
+
+  socket.on('candidate', (id, candidate) => {
+    peerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
+  });
+
+  socket.on('disconnectPeer', (id) => {
+    peerConnections[id].close();
+    delete peerConnections[id];
+  });
+};
