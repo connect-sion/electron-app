@@ -19,7 +19,7 @@ exports.getAudio = () => {
     const peerConnection = new RTCPeerConnection(config);
     peerConnections[id] = peerConnection;
 
-    let stream = audio.src;
+    let stream = audio.srcObject;
     stream
       .getTracks()
       .forEach((track) => peerConnection.addTrack(track, stream));
