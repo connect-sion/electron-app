@@ -39,7 +39,7 @@ exports.getAudio = () => {
   });
 
   socket.on('answer', (id, description) => {
-    peerConnections[id].setRemoteDescription(description);
+    if (description) peerConnections[id].setRemoteDescription(description);
   });
 
   socket.on('candidate', (id, candidate) => {
