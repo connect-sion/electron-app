@@ -1,53 +1,42 @@
 const io = require('socket.io-client');
+const Peer = require('simple-peer');
 
 const socket = io.connect('http://localhost:8080');
 
 const peerConnections = {};
 const audio = document.querySelector('audio');
-const config = { iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] };
+
+let broadcaster = new Peer({ initiator: true });
+broadcaster.on('signal', (signal) => {
+  socket.emit('signal', { signal, peerId: socket.id });
+});
+
+socket.on('peer', ({ peerId }) => {
+  let peer = new Peer({ initiator: true });
+  peerConnections[peerId] = peer;
+
+  // peer signaling
+  socket.on('signal', (data) => {
+    if (data.peerId === peerId) {
+      peer.signal(data.signal);
+    }
+  });
+  peer.on('signal', (signal) => {
+    socket.emit('signal', { signal, peerId });
+  });
+
+  peer.on('error', (error) => {
+    console.error(error);
+  });
+});
 
 exports.getAudio = () => {
   navigator.mediaDevices
     .getUserMedia({ video: false, audio: true })
     .then((stream) => {
+      broadcaster.addStream(stream);
+      console.log(stream);
       audio.srcObject = stream;
-      socket.emit('broadcaster');
     })
     .catch(console.error);
-
-  socket.on('watcher', (id) => {
-    const peerConnection = new RTCPeerConnection(config);
-    peerConnections[id] = peerConnection;
-
-    let stream = audio.srcObject;
-    stream
-      .getTracks()
-      .forEach((track) => peerConnection.addTrack(track, stream));
-
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit('candidate', id, event.candidate);
-      }
-    };
-
-    peerConnection
-      .createOffer()
-      .then((sdp) => peerConnection.setLocalDescription(sdp))
-      .then(() => {
-        socket.emit('offer', id, peerConnection.localDescription);
-      });
-  });
-
-  socket.on('answer', (id, description) => {
-    if (description) peerConnections[id].setRemoteDescription(description);
-  });
-
-  socket.on('candidate', (id, candidate) => {
-    peerConnections[id].addIceCandidate(new RTCIceCandidate(candidate));
-  });
-
-  socket.on('disconnectPeer', (id) => {
-    peerConnections[id].close();
-    delete peerConnections[id];
-  });
 };
