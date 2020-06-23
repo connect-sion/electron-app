@@ -1,42 +1,65 @@
 const io = require('socket.io-client');
-const Peer = require('simple-peer');
 
-const socket = io.connect('http://localhost:8080');
+const socket = io.connect('http://localhost:3000');
 
-const peerConnections = {};
 const audio = document.querySelector('audio');
+let rtcPeerConnections = {};
+const iceServers = {
+  iceServers: [
+    { urls: 'stun:stun.services.mozilla.com' },
+    { urls: 'stun:stun.l.google.com:19302' },
+  ],
+};
 
-let broadcaster = new Peer({ initiator: true });
-broadcaster.on('signal', (signal) => {
-  socket.emit('signal', { signal, peerId: socket.id });
-});
+socket.on('viewer', function (viewer) {
+  rtcPeerConnections[viewer] = new RTCPeerConnection(iceServers);
 
-socket.on('peer', ({ peerId }) => {
-  let peer = new Peer({ initiator: true });
-  peerConnections[peerId] = peer;
+  const stream = audio.srcObject;
+  stream
+    .getTracks()
+    .forEach((track) => rtcPeerConnections[viewer].addTrack(track, stream));
 
-  // peer signaling
-  socket.on('signal', (data) => {
-    if (data.peerId === peerId) {
-      peer.signal(data.signal);
+  rtcPeerConnections[viewer].onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('candidate', viewer, {
+        type: 'candidate',
+        label: event.candidate.sdpMLineIndex,
+        id: event.candidate.sdpMid,
+        candidate: event.candidate.candidate,
+      });
     }
-  });
-  peer.on('signal', (signal) => {
-    socket.emit('signal', { signal, peerId });
-  });
+  };
 
-  peer.on('error', (error) => {
-    console.error(error);
-  });
+  rtcPeerConnections[viewer]
+    .createOffer()
+    .then((sessionDescription) => {
+      rtcPeerConnections[viewer].setLocalDescription(sessionDescription);
+      socket.emit('offer', viewer, { type: 'offer', sdp: sessionDescription });
+    })
+    .catch((error) => console.log(error));
 });
 
-exports.getAudio = () => {
+socket.on('answer', function (viewerId, event) {
+  const description = new RTCSessionDescription(event);
+  rtcPeerConnections[viewerId].setRemoteDescription(description);
+});
+
+socket.on('candidate', function (id, event) {
+  const candidate = new RTCIceCandidate({
+    sdpMLineIndex: event.label,
+    candidate: event.candidate,
+  });
+  rtcPeerConnections[id].addIceCandidate(candidate);
+});
+
+function getAudio() {
   navigator.mediaDevices
     .getUserMedia({ video: false, audio: true })
     .then((stream) => {
-      broadcaster.addStream(stream);
-      console.log(stream);
       audio.srcObject = stream;
+      socket.emit('broadcaster');
     })
     .catch(console.error);
-};
+}
+
+exports.getAudio = getAudio;

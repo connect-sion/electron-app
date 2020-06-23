@@ -4,9 +4,10 @@
   "description": "A Frontend Masters Example Application",
   "main": "app/main.js",
   "dependencies": {
+    "concurrently": "~5.2.0",
     "electron": "~3.0.10",
     "electron-squirrel-startup": "~1.0.0",
-    "simple-peer": "~9.7.2",
+    "express": "~4.17.1",
     "socket.io": "~2.3.0"
   },
   "devDependencies": {
@@ -18,7 +19,9 @@
     "eslint-plugin-import": "~2.2.0"
   },
   "scripts": {
-    "start": "electron .",
+    "start": "concurrently \"npm run server\" \"npm run electron\"",
+    "server": "node server.js",
+    "electron": "electron .",
     "postinstall": "electron-rebuild",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
